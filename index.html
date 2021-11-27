@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to this quiz!</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="col-md-12">
+            <h2 class="my-4 text-center">Quiz Application</h2>
+
+            <div class="questions">
+                
+            </div>
+            <input type="button" class="btn btn-primary mt-2" id="verify-all-questions" value="Submit Quiz"> 
+            <div id="result" class="mt-2 mb-5"></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            /*
+            --------------------------
+                Load All Questions
+            --------------------------
+            */
+            $.ajax({"url": "http://localhost:3000/get-questions","method": "GET"}).done(function (questions) {
+                questions.forEach((question, index) => {
+                    let questionNode = $(`<div class="question border p-3 my-4"></div>`);
+                    questionNode.append($(`<span class="float-right d-none" id="result-${index}"></span>`));
+                    question.options.forEach((option, optionIndex) => {
+                    questionNode.text(question.stem);
+                        let optionDivNode = $(`<div class="form-check"></div>`);
+                        let optionInputNode = $(`<input class="form-check-input" type="radio" name="q${index}" id="q${index}o${optionIndex}" data-option-index="${optionIndex}" data-question-index="${index}">`)
+                        let optionLabelNode = $(`<label class="form-check-label" for="q${index}o${optionIndex}"></label>`);
+                        optionLabelNode.text(option)
+                        optionDivNode.append(optionInputNode).append(optionLabelNode);
+                        questionNode.append(optionDivNode)
+                    });
+                    
+                    $('.questions').append(questionNode)
+                });
+            });
+            //Loaded Questions
+
+            //check single question
+            $("body").on('change', 'input[type=radio]', (e) => {
+                let inputNode = $(e.target);
+                let nodeName = inputNode.attr('name');
+                $(`input[name=${nodeName}]`).attr('disabled', 'disabled')
+                let questionIndex = inputNode.attr('data-question-index');
+                let optionIndex = inputNode.attr('data-option-index');
+
+                $.ajax({
+                    "url": "http://localhost:3000/verify-question",
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "data": JSON.stringify({
+                        "questionIndex": questionIndex,
+                        "optionIndex": optionIndex
+                    }),
+                }).done(function (response) {
+                    let resultNode = $(`span#result-${questionIndex}`);
+                    resultNode.removeClass('d-none');
+                    if(response){
+                        resultNode.addClass('text-success');
+                        resultNode.text('Correct')
+                    }else{
+                        resultNode.addClass('text-danger');
+                        resultNode.text('Incorrect')
+                    }
+                });
+            });
+
+            //verify-all-questions
+            $("#verify-all-questions").click(e => {
+                var userAnswers = $('input[type=radio]:checked').map(function() {
+                    elem  = 
+                    val = $(this).data('question-index')
+                    return {questionIndex: $(this).data('question-index'), optionIndex: $(this).data('option-index')};
+                }).get();
+
+                $.ajax({
+                    "url": "http://localhost:3000/verify-all-questions",
+                    "method": "POST",
+                    "headers": {
+                        "Content-Type": "application/json"
+                    },
+                    "data": JSON.stringify({
+                        "userAnswers": userAnswers
+                    }),
+                }).done(function (response) {
+                    $("#result").html(`<b>Result:</b> Total Questions: ${response.total}. Your Score: ${response.score}. (${response.score}/${response.total})`)
+                });
+            })
+            
+        })
+    </script>
+</body>
+</html>
